@@ -15,9 +15,9 @@ The pipeline performs the following steps:
 
 
 🚀 How to Run
-1. Make the job script executable
+1. Make the job script executable:
 chmod +x extreme_events_computation.sh
-2. Submit the job
+2. Submit the job:
 sbatch extreme_events_computation.sh
 
 
