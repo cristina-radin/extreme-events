@@ -75,8 +75,8 @@ depth = 8 #8, 51, 104, 186.5, 489 m
  
 
 
-path = '/work/bg1446/u241379/extremes_out/' + extreme + '_'+ var_path + '/depth' + str(depth) + '/tmp/'
-path_out = '/work/bg1446/u241379/extremes_out/' + extreme + '_'+ var_path + '/depth' + str(depth) + '/' 
+path = '/***/extremes_out/' + extreme + '_'+ var_path + '/depth' + str(depth) + '/tmp/'
+path_out = '/****/extremes_out/' + extreme + '_'+ var_path + '/depth' + str(depth) + '/' 
 
 
 
