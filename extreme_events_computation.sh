@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-#SBATCH -J thresholds
-#SBATCH --mail-user=cristina.radin@uni-hamburg.de
+#SBATCH -J extremes
+#SBATCH --mail-user=****@****.de
 #SBATCH -p shared
-#SBATCH --output /work/bg1446/u241379/extremes_out/job%j.log
+#SBATCH --output ./extremes_out/job%j.log
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH -A bg1446
+#SBATCH -A *****
 #SBATCH --time=12:00:00
 #SBATCH --mem=128G
 
@@ -62,8 +62,8 @@ module load cdo/2.5.0-gcc-11.2.0
 # CONFIG
 #######################################
 
-base_path="/work/gg1426/g260161/icon-oes-mm-coast_relaunch2/experiments/hamocc_era5_244_cerosinc_pco2_cAR9"
-target_grid="/work/gg1426/g260161/grids/GGG_0.1"
+base_path="******"
+target_grid="****"
 
 
 var="to" #to, hi, o2 
