@@ -19,6 +19,7 @@ The pipeline performs the following steps:
 chmod +x extreme_events_computation.sh
 2. Submit the job:
 sbatch extreme_events_computation.sh
+3. Visualize results: python extreme_events_visualizer.py
 
 
 
