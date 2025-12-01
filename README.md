@@ -23,5 +23,4 @@ sbatch extreme_events_computation.sh
 
 
 📞 Contact / Support
-For questions regarding the processing pipeline, HPC execution, or data structure, please contact:
-Cristina Radin (project PI / main developer)
+For questions regarding the processing pipeline, HPC execution, or data structure, don't hesitate to contact me. 
