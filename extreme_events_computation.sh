@@ -14,6 +14,7 @@
 # Script: calcul_extremes_computation.sh
 # Author: Cristina Radin (University of Hamburg)
 # Contact: cristina.radin@uni-hamburg.de
+# Based on script from Danai Filippou
 # Date: 11.2025
 #
 # Description:
