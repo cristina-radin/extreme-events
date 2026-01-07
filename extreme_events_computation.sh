@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
 
-#SBATCH -J extremes
-#SBATCH --mail-user=****@****.de
+#SBATCH -J thresholds
+#SBATCH --mail-user=cristina.radin@uni-hamburg.de
 #SBATCH -p shared
-#SBATCH --output ./extremes_out/job%j.log
+#SBATCH --output /work/bg1446/u241379/extremes_out_final/job%j.log
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH -A *****
+#SBATCH -A bg1446
 #SBATCH --time=12:00:00
 #SBATCH --mem=128G
 
 ####################################################################################################
 # Project: AI4PEX (https://ai4pex.org/)
-# Script: calcul_extremes_computation.sh
+# Script: extreme_events_computation.sh
 # Author: Cristina Radin (University of Hamburg)
 # Contact: cristina.radin@uni-hamburg.de
-# Adapted from Danai Filippou's work. 
-# Date: 11.2025
+# Based on script from Danai Filippou
+# Date: 12.2025
 #
 # Description:
 # This script computes extreme events (MHW, DEO, OAX) from ICON-COAST model output.
 # It performs a full CDO-based preprocessing and extreme-event detection pipeline:
 #
 #   1. Preprocessing & Grid Remapping
-#      - Extracts region, depth, and variable-of-interest (to, o2, hi→pH).
-#      - Converts HI to pH if required.
+#      - Extracts region, depth, and variable-of-interest (to, o2, hi).
+#      - Converts units (o2, hi to μmol m-3)
 #      - Shifts timestamps, remaps to target grid.
 #      - Processes files in blocks for efficiency.
 #
@@ -31,61 +31,76 @@
 #      - Merges processed blocks into a continuous time series.
 #
 #   3. Reference Period
-#      - Selects reference climatology for non-leap calendar.
+#      - Selects reference climatology period (1985-2014).
+#      - Converts to non-leap calendar (deletes Feb 29).
 #
 #   4. Threshold Calculation
-#      - Produces climatological thresholds.
+#      - Produces climatological thresholds (percentile-based).
 #      - Computes monthly means for the threshold, reference and entire period.
 #
 #   5. Extreme Event Detection
 #      - Computes daily anomalies relative to threshold.
 #      - Generates binary extreme mask (≥ or ≤ threshold depending on variable).
-#      - Computes consecutive-day duration, filters events by minimum duration (5 days).
+#      - Computes consecutive-day duration, filters events by minimum duration 
+#        (5 days, following Hobday et al., 2016) and stores duration.
 #      - Computes intensity of extreme events.
 #      - Mean and maximum intensities (total, yearly, monthly).
-#      - Total, yearly, and monthly number of extreme days.
 #
+#   6. Post-processing & Visualization
+#      - Computes a filtered mask with extreme events (1=day in an Extreme Event with >5 days).
+#      - Total, yearly, and monthly number of extreme days with cdo. 
+#      - Generates spatial and temporal plots.
+#
+# Output Structure:
+#   ./extremes_out_final/<extreme>_<var>/depth<depth>/
+#   ├── tmp/          # Temporary processing files
+#   ├── *.nc          # Final output NetCDFs
+#   └── *.png         # Diagnostic plots
 #
 # Notes:
-#   - Adjust configuration parameters (variable, depth, paths) as needed.
-#   - This script is extendible for other datasets and configurations. 
-#   - This script assumes ICON-COAST output is structured as daily files per chunk using a triangular grid.
-#   - All temporary files are stored in a dedicated tmp/ directory and removed progressively.
+#   - Adjust configuration parameters (variable, depth, paths) in CONFIG section.
+#   - Requires CDO 2.5.0+ and access to target grid file.
+#   - Uses Python environment with xarray, numpy, matplotlib, numba.
+#   - All temporary files are stored in tmp/ directory and removed progressively.
+#   - Memory intensive: uses 128GB RAM and 12h walltime.
+#
+#
+# References:
+#   Hobday et al. (2016) - A hierarchical approach to defining marine heatwaves
+#   ICON-COAST model documentation
 #
 ####################################################################################################
 
 
 
 module load cdo/2.5.0-gcc-11.2.0
+module load nco 2>/dev/null || echo "Note: nco module not available"
 
 
 #######################################
 # CONFIG
 #######################################
 
-base_path="******"
-target_grid="****"
+base_path="/work/gg1426/g260161/icon-oes-mm-coast_relaunch2/experiments/hamocc_era5_244_cerosinc_pco2_cAR9"
+target_grid="/work/gg1426/g260161/grids/GGG_0.1"
 
 
-var="to" #to, hi, o2 
-depth=8 #8, 51, 104, 186.5, 489 m
+var="hi" #to, hi, o2 
+depth=489 #8, 51, 104, 186.5, 489 m
 
 if [ "$var" = "to" ]; then
     percentile=90
     comparison="gec"
-    calculate_ph=0
     extreme="mhw"
 
 elif [ "$var" = "o2" ]; then
     percentile=10
     comparison="lec"
-    calculate_ph=0
     extreme="deo"
 
 elif [ "$var" = "hi" ]; then
-    percentile=10
-    comparison="lec"
-    calculate_ph=1
+    percentile=90
+    comparison="gec"
     extreme="oax"
 fi
 
@@ -94,9 +109,8 @@ echo "var: $var"
 echo "depth: $depth"
 echo "percentile: $percentile"
 echo "comparison: $comparison"
-echo "calculate_ph: $calculate_ph"
 
-out_dir="./extremes_out/${extreme}_${var}/depth${depth}"
+out_dir="./extremes_out_final/${extreme}_${var}/depth${depth}"
 tmp_dir="$out_dir/tmp"
 mkdir -p "$out_dir" "$tmp_dir"
 
@@ -127,7 +141,7 @@ start=$(date +%s)
 
 
 #######################################
-# 1. PREPROCESSING FILES AND MERGE BY BLOCKS
+# 1. PREPROCESSING & GRID REMAPPING
 #######################################
 
 merged_blocks=()
@@ -144,27 +158,46 @@ for chunk in "$base_path"/chunk*; do
     for f in "${files[@]}"; do
         tmp_out=$(mktemp --tmpdir="$tmp_dir" --suffix=".nc")
 
-            if [ "$var" = "hi" ]; then
-                tmp_ph=$(mktemp --tmpdir="$tmp_dir" --suffix=".nc")
-                run_cdo cdo -O -P 20 -expr,"pH=-log10(hi)" "$f" "$tmp_ph"
-                input_for_processing="$tmp_ph"
-                select_var="pH"
-            else
-                input_for_processing="$f"
-                select_var="$var"
-            fi
-
             run_cdo cdo \
                 -sellonlatbox,$lon_min,$lon_max,$lat_min,$lat_max \
                 -sellevel,$depth \
-                -selvar,$select_var \
+                -selvar,$var \
                 -shifttime,-1day \
                 -remapnn,"$target_grid" \
-                "$input_for_processing" "$tmp_out"
+                "$f" "$tmp_out"
 
-            if [ "$var" = "hi" ]; then
-                rm -f "$tmp_ph"
-            fi  
+            if [ "$var" = "o2" ]; then
+                tmp_out_units=$(mktemp --tmpdir="$tmp_dir" --suffix=".nc")  
+
+                run_cdo cdo -expr,"o2=o2*1e9" "$tmp_out" "$tmp_out_units"
+
+                if command -v ncatted &>/dev/null; then
+                    ncatted -a units,o2,o,c,"micromol m-3" \
+                            -a long_name,o2,o,c,"oxygen concentration" \
+                            "$tmp_out_units" 2>/dev/null || true
+                    if [ $count -eq 1 ]; then  
+                        echo "Metadatos actualizados (units: micromol O2 m-3)"
+                    fi
+                fi
+
+                mv "$tmp_out_units" "$tmp_out"
+                
+            elif [ "$var" = "hi" ]; then
+                tmp_out_units=$(mktemp --tmpdir="$tmp_dir" --suffix=".nc")
+                    
+                run_cdo cdo -expr,"hi=hi*1e9" "$tmp_out" "$tmp_out_units"
+                    
+                if command -v ncatted &>/dev/null; then
+                    ncatted -a units,hi,o,c,"micromol m-3" \
+                            -a long_name,hi,o,c,"hydrogen ion concentration" \
+                            "$tmp_out_units" 2>/dev/null || true
+                    if [ $count -eq 1 ]; then
+                            echo "HI: Convertido a  (units: micromol O2 m-3)"
+                    fi
+                fi
+                    
+                    mv "$tmp_out_units" "$tmp_out"
+            fi
 
         tmp_list+=("$tmp_out")
         count=$((count+1))
@@ -193,7 +226,7 @@ done
 
 
 #######################################
-# 2. FINAL MERGE
+# 2. MERGING
 #######################################
 
 tmp_all_data_merged="$tmp_dir/tmp_all_data_merged.nc"
@@ -202,7 +235,7 @@ run_cdo cdo mergetime "${merged_blocks[@]}" "$tmp_all_data_merged"
 
 
 #######################################
-# 3. NO-LEAP + SUBSET REF PERIOD
+# 3. REFERENCE PERIOD PROCESSING
 #######################################
 
 tmp_ref="$tmp_dir/tmp_ref.nc"
@@ -236,7 +269,7 @@ all_data_monmean="$tmp_dir/all_data_monmean.nc"
 run_cdo cdo -P 32 -ydrunmin,5 "$ref_nl" "$min"
 run_cdo cdo -P 32 -ydrunmax,5 "$ref_nl" "$max"
 
-run_cdo cdo -P 32 -ydrunpctl,90,5 "$ref_nl" "$min" "$max" "$tmp_thresh"
+run_cdo cdo -P 32 -ydrunpctl,${percentile},5 "$ref_nl" "$min" "$max" "$tmp_thresh"
 run_cdo cdo -settaxis,0001-01-01,00:00:00,1day "$tmp_thresh" "$thresh"
 
 
@@ -250,32 +283,34 @@ rm -f "$tmp_thresh"
 
 
 ###################################
-# 5. EXTREME EVENTS
+# 5. EXTREME EVENT DETECTION
 ###################################
 
 tmp_anom="$tmp_dir/tmp_anomalies.nc" 
 binary="$tmp_dir/binary.nc" 
 tmp_count="$tmp_dir/tmp_count.nc" 
 tmp_duration="$tmp_dir/tmp_duration.nc" 
+tmp_duration2="$tmp_dir/tmp_duration2.nc" 
 duration="$tmp_dir/duration.nc" 
 intensity="$tmp_dir/intensity.nc" 
 
 
 run_cdo cdo -P 100 sub "$all_data_nl" "$thresh" "$tmp_anom" 
 run_cdo cdo -P 100 ${comparison},0 "$tmp_anom" "$binary"  
-run_cdo cdo -P 100 runsum,5 "$binary" "$tmp_count"
+run_cdo cdo -P 100 consecsum "$binary" "$tmp_count"
 run_cdo cdo -P 100 gec,5 "$tmp_count" "$tmp_duration" 
-run_cdo cdo -P 100 runmax,5 "$tmp_duration" "$duration" 
+run_cdo cdo -P 100 mul "$tmp_duration" "$tmp_count" "$tmp_duration2" 
+run_cdo cdo -P 100 setmissval,0  "$tmp_duration2"  "$duration" 
+
+
 run_cdo cdo -P 100 mul "$binary" "$tmp_anom" "$intensity"
 
 
-rm -f "$tmp_count" "$tmp_duration" "$tmp_anom"
+rm -f "$tmp_count" "$tmp_duration" "$tmp_anom" "$tmp_duration2"
 
 
 ###################################
-days_total="$tmp_dir/days_total.nc"
-days_yearly="$tmp_dir/days_yearly.nc"
-days_monthly="$tmp_dir/days_monthly.nc"
+
 
 intensity_mean_total="$tmp_dir/intensity_mean_total.nc"
 intensity_mean_yearly="$tmp_dir/intensity_mean_yearly.nc"
@@ -285,9 +320,6 @@ intensity_max_total="$tmp_dir/intensity_max_total.nc"
 intensity_max_yearly="$tmp_dir/intensity_max_yearly.nc"
 intensity_max_monthly="$tmp_dir/intensity_max_monthly.nc"
 
-run_cdo cdo -P 100 timsum "$duration" "$days_total"
-run_cdo cdo -P 100 yearsum "$duration" "$days_yearly"
-run_cdo cdo -P 100 monsum "$duration" "$days_monthly"
 
 run_cdo cdo -P 100 timmean "$intensity" "$intensity_mean_total"
 run_cdo cdo -P 100 yearmean "$intensity" "$intensity_mean_yearly"
@@ -298,11 +330,61 @@ run_cdo cdo -P 100 yearmax "$intensity" "$intensity_max_yearly"
 run_cdo cdo -P 100 monmax "$intensity" "$intensity_max_monthly"
 
 
+###################################
+# 6. POST-PROCESSING & VISUALIZATION
+###################################
 
 
-echo "-- COMPLETED --"
+# 6.1. Activate our virtual environment
+source /work/bg1446/u241379/myenv/bin/activate
+echo "Activated environment"
+echo "Python: $(which python)"
+echo "Path: /work/bg1446/u241379/myenv/bin/python"
 
-echo "=== END OF COMPUTATION ==="
+# 6.2. Numba & CPUs
+if [ -z "$SLURM_CPUS_PER_TASK" ] || [ "$SLURM_CPUS_PER_TASK" = "" ]; then
+    export NUMBA_NUM_THREADS=4
+    echo "SLURM_CPUS_PER_TASK no defined, using 4 threads"
+else
+    export NUMBA_NUM_THREADS=$SLURM_CPUS_PER_TASK
+    echo "Using $NUMBA_NUM_THREADS threads (SLURM_CPUS_PER_TASK)"
+fi
+
+# 6.3. Verify installed packages 
+echo ""
+echo "Verifying Pytho packages:"
+python -c "
+import sys
+print(f'Python {sys.version.split()[0]}')
+import numpy as np; print(f'numpy {np.__version__}')
+import xarray as xr; print(f'xarray {xr.__version__}')
+import numba; print(f'numba {numba.__version__}')
+print(f'NUMBA using {numba.config.NUMBA_NUM_THREADS} threads')
+"
+
+# 6.4. Run scripts for duration computation and plotting
+echo ""
+echo "Running extreme_events_visualizer.py..."
+echo "========================================"
+
+python extreme_events_duration.py "$var" "$depth"
+python extreme_events_visualizer.py "$var" "$depth"
+
+# 6.5. Deactivate environment
+deactivate
+
+
+echo "========================================"
+echo "Final date: $(date)"
+echo "Job completed"
+echo "========================================"
+
+
+
+
+echo "-- COMPLETED SH --"
+
+echo "=== END OF THE COMPUTATION ==="
 end=$(date +%s)
 elapsed=$(( end - start ))
 echo "Total execution time: $(( elapsed / 3600 )) hours"
