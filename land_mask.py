@@ -24,8 +24,8 @@ import matplotlib.pyplot as plt
 # Configuration
 
 DEPTHS = [8, 51, 104, 186.5, 489]
-BASE_PATH = '/work/bg1446/u241379/extremes_out_final'  
-OUTPUT_FILE = '/work/bg1446/u241379/land_mask_3d.nc'
+BASE_PATH = '___________/extremes_out_final'  
+OUTPUT_FILE = '___________/land_mask_3d.nc'
 
 # -------------------------------
 # CREAR MÁSCARA 3D
