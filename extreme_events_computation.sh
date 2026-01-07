@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 #SBATCH -J thresholds
-#SBATCH --mail-user=cristina.radin@uni-hamburg.de
+#SBATCH --mail-user=___________
 #SBATCH -p shared
-#SBATCH --output /work/bg1446/u241379/extremes_out_final/job%j.log
+#SBATCH --output ___________/extremes_out_final/job%j.log
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH -A bg1446
 #SBATCH --time=12:00:00
@@ -81,8 +81,8 @@ module load nco 2>/dev/null || echo "Note: nco module not available"
 # CONFIG
 #######################################
 
-base_path="/work/gg1426/g260161/icon-oes-mm-coast_relaunch2/experiments/hamocc_era5_244_cerosinc_pco2_cAR9"
-target_grid="/work/gg1426/g260161/grids/GGG_0.1"
+base_path="___________"
+target_grid="___________"
 
 
 var="hi" #to, hi, o2 
@@ -149,7 +149,7 @@ merged_blocks=()
 for chunk in "$base_path"/chunk*; do
     [ ! -d "$chunk" ] && continue
 
-    files=($(ls "$chunk"/hamocc_era5_244_cerosinc_pco2_cAR9_daily_[0-9][0-9]*T*.nc 2>/dev/null | sort))
+    files=($(ls "$chunk"___________daily_[0-9][0-9]*T*.nc 2>/dev/null | sort))
     [ ${#files[@]} -eq 0 ] && continue
 
     tmp_list=()
@@ -336,10 +336,10 @@ run_cdo cdo -P 100 monmax "$intensity" "$intensity_max_monthly"
 
 
 # 6.1. Activate our virtual environment
-source /work/bg1446/u241379/myenv/bin/activate
+source ___________/bin/activate
 echo "Activated environment"
 echo "Python: $(which python)"
-echo "Path: /work/bg1446/u241379/myenv/bin/python"
+echo "Path:___________/bin/python"
 
 # 6.2. Numba & CPUs
 if [ -z "$SLURM_CPUS_PER_TASK" ] || [ "$SLURM_CPUS_PER_TASK" = "" ]; then
