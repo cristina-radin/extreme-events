@@ -29,7 +29,7 @@ Event types supported:
 Dependencies:
     - xarray, numpy, matplotlib, pandas, numba
     - CDO (command-line tool) for temporal aggregation
-    - Land mask file: /work/bg1446/u241379/land_mask_3d.nc
+    - Land mask file: ___________/land_mask_3d.nc
 
 Usage:
     python extreme_events_duration.py <variable> <depth>
@@ -75,7 +75,7 @@ from numba import jit, prange
 import sys 
 
 
-LAND_MASK_3D_PATH = '/work/bg1446/u241379/land_mask_3d.nc'
+LAND_MASK_3D_PATH = '___________/land_mask_3d.nc'
 
 
 @jit(nopython=True, parallel=True)
@@ -175,8 +175,8 @@ def main():
     
 
     # Build paths
-    path = f'/work/bg1446/u241379/extremes_out_final/{extreme}_{var_path}/depth{depth_for_path}/tmp/'
-    path_out = f'/work/bg1446/u241379/extremes_out_final/{extreme}_{var_path}/depth{depth_for_path}/'
+    path = f'___________/extremes_out_final/{extreme}_{var_path}/depth{depth_for_path}/tmp/'
+    path_out = f'___________/extremes_out_final/{extreme}_{var_path}/depth{depth_for_path}/'
     
     os.makedirs(path_out, exist_ok=True)
     
