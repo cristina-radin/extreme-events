@@ -71,7 +71,7 @@ from xarray.coders import CFDatetimeCoder
 import sys
 
 
-LAND_MASK_3D_PATH = '/work/bg1446/u241379/land_mask_3d.nc'
+LAND_MASK_3D_PATH = '___________/land_mask_3d.nc'
 
 
 
@@ -146,7 +146,7 @@ if depth_for_path.endswith('.0'):
 
 # Find variable configuration
 if var_from_bash not in VARIABLES_CONFIG:
-    raise ValueError(f"Variable '{var_from_bash}' no válida. Usar: to, o2, hi")
+    raise ValueError(f"Variable '{var_from_bash}' no valid. Use: to, o2, hi")
 
 config = VARIABLES_CONFIG[var_from_bash]
 var = config['name2']
@@ -159,8 +159,8 @@ cmap_to_use = config['cmap']
 
 
 # Build paths
-path = f'/work/bg1446/u241379/extremes_out_final/{extreme}_{var_path}/depth{depth_for_path}/tmp/'
-path_out = f'/work/bg1446/u241379/extremes_out_final/{extreme}_{var_path}/depth{depth_for_path}/'
+path = f'___________/extremes_out_final/{extreme}_{var_path}/depth{depth_for_path}/tmp/'
+path_out = f'___________/extremes_out_final/{extreme}_{var_path}/depth{depth_for_path}/'
 
 import os
 os.makedirs(path_out, exist_ok=True)
