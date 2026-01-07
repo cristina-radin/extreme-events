@@ -105,7 +105,7 @@ VARIABLES_CONFIG = {
     }
 }
 
-DEFAULT_LAND_MASK_PATH = '/work/bg1446/u241379/land_mask_3d.nc'
+DEFAULT_LAND_MASK_PATH = '___________/land_mask_3d.nc'
 
 
 def load_global_land_mask(mask_path):
@@ -947,7 +947,7 @@ def main():
                        help='Variable to process: to (Temperature), o2 (Oxygen), hi (Heat Index), or all')
     
     parser.add_argument('--base-path', 
-                       default='/work/bg1446/u241379/extremes_out_final/',
+                       default='___________/extremes_out_final/',
                        help='Base path for the data')
     
     parser.add_argument('--output-dir', 
