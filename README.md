@@ -37,15 +37,11 @@ The pipeline performs the following steps:
 1. Submit the job:
 `sbatch extreme_events_computation.sh`
 
-3. Generate land mask (required once)
+2. Generate land mask (required once)
 `python land_mask.py`
 
-5. Process specific variable/depth
-`python extreme_events_duration.py to 8`      # Temperature at 8m
 
-`python extreme_events_visualizer.py o2 51`   # Oxygen at 51m
-
-5. Generate animations (optional)
+3. Generate animations (optional)
 
 `python gif_generator.py to 8`                # Create GIF for temperature event
 
